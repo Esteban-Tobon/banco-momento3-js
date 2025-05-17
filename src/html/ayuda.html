@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cajero con JavaScript</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .seccion { margin-bottom: 30px; }
+    .oculto { display: none; }
+    input, button, select { margin: 5px 0; display: block; }
+  </style>
+</head>
+<body>
+  <h1>Cajero Virtual</h1>
+
+  <!-- Sección de Registro -->
+  <div id="registro" class="seccion">
+    <h2>Registro</h2>
+    <label for="usuarioRegistro">Nombre de usuario:</label>
+    <input type="text" id="usuarioRegistro">
+
+    <label for="claveRegistro">Contraseña:</label>
+    <input type="password" id="claveRegistro">
+
+    <button onclick="registrarUsuario()">Registrarse</button>
+  </div>
+
+  <!-- Sección de Ingreso -->
+  <div id="ingreso" class="seccion">
+    <h2>Iniciar Sesión</h2>
+    <label for="usuarioLogin">Usuario:</label>
+    <input type="text" id="usuarioLogin">
+
+    <label for="claveLogin">Contraseña:</label>
+    <input type="password" id="claveLogin">
+
+    <button onclick="iniciarSesion()">Ingresar</button>
+  </div>
+
+  <!-- Sección de Operaciones -->
+  <div id="panel" class="seccion oculto">
+    <h2>Bienvenido, <span id="nombreUsuario"></span></h2>
+    <button onclick="verSaldo()">Ver Saldo</button>
+    <button onclick="mostrarTransferencia()">Transferir</button>
+    <button onclick="mostrarConsignar()">Consignar</button>
+    <button onclick="mostrarRetirar()">Retirar</button>
+    <button onclick="verMovimientos()">Ver Movimientos</button>
+    <button onclick="cerrarSesion()">Cerrar Sesión</button>
+
+    <div id="resultado"></div>
+    <div id="formularioExtra"></div>
+  </div>
+
+  <script>
+    let usuarioActivo = null;
+
+    function registrarUsuario() {
+      const usuario = document.getElementById('usuarioRegistro').value;
+      const clave = document.getElementById('claveRegistro').value;
+      if (!usuario) return alert("El nombre de usuario es obligatorio");
+
+      if (localStorage.getItem(usuario)) {
+        alert("Este nombre de usuario ya está registrado");
+        return;
+      }
+
+      const nuevoUsuario = {
+        clave: clave,
+        saldo: 200000,
+        movimientos: []
+      };
+
+      localStorage.setItem(usuario, JSON.stringify(nuevoUsuario));
+      alert("Usuario registrado correctamente");
+    }
+
+    function iniciarSesion() {
+      const usuario = document.getElementById('usuarioLogin').value;
+      const clave = document.getElementById('claveLogin').value;
+      const datos = JSON.parse(localStorage.getItem(usuario));
+
+      if (datos && datos.clave === clave) {
+        usuarioActivo = usuario;
+        document.getElementById('registro').style.display = 'none';
+        document.getElementById('ingreso').style.display = 'none';
+        document.getElementById('panel').classList.remove('oculto');
+        document.getElementById('nombreUsuario').textContent = usuario;
+      } else {
+        alert("Usuario o contraseña incorrectos");
+      }
+    }
+
+    function verSaldo() {
+      const datos = JSON.parse(localStorage.getItem(usuarioActivo));
+      document.getElementById('resultado').innerText = `Saldo actual: $${datos.saldo}`;
+    }
+
+    function mostrarTransferencia() {
+      const form = `
+        <h3>Transferir</h3>
+        <label>Usuario destino:</label>
+        <input type="text" id="destino">
+        <label>Monto:</label>
+        <input type="number" id="monto">
+        <button onclick="transferir()">Enviar</button>
+      `;
+      document.getElementById('formularioExtra').innerHTML = form;
+    }
+
+    function transferir() {
+      const destino = document.getElementById('destino').value;
+      const monto = parseFloat(document.getElementById('monto').value);
+      const origenData = JSON.parse(localStorage.getItem(usuarioActivo));
+      const destinoData = JSON.parse(localStorage.getItem(destino));
+
+      if (!destinoData) return alert("El usuario destino no existe");
+      if (monto > origenData.saldo) return alert("Saldo insuficiente");
+
+      origenData.saldo -= monto;
+      destinoData.saldo += monto;
+
+      origenData.movimientos.push(`Transferencia enviada a ${destino}: $${monto}`);
+      destinoData.movimientos.push(`Transferencia recibida de ${usuarioActivo}: $${monto}`);
+
+      localStorage.setItem(usuarioActivo, JSON.stringify(origenData));
+      localStorage.setItem(destino, JSON.stringify(destinoData));
+
+      verSaldo();
+    }
+
+    function mostrarConsignar() {
+      const form = `
+        <h3>Consignar</h3>
+        <label>Monto a consignar:</label>
+        <input type="number" id="consignar">
+        <button onclick="consignarDinero()">Consignar</button>
+      `;
+      document.getElementById('formularioExtra').innerHTML = form;
+    }
+
+    function consignarDinero() {
+      const monto = parseFloat(document.getElementById('consignar').value);
+      const datos = JSON.parse(localStorage.getItem(usuarioActivo));
+      datos.saldo += monto;
+      datos.movimientos.push(`Consignación: $${monto}`);
+      localStorage.setItem(usuarioActivo, JSON.stringify(datos));
+      verSaldo();
+    }
+
+    function mostrarRetirar() {
+      const form = `
+        <h3>Retirar</h3>
+        <label>Monto a retirar:</label>
+        <input type="number" id="retirar">
+        <button onclick="retirarDinero()">Retirar</button>
+      `;
+      document.getElementById('formularioExtra').innerHTML = form;
+    }
+
+    function retirarDinero() {
+      const monto = parseFloat(document.getElementById('retirar').value);
+      const datos = JSON.parse(localStorage.getItem(usuarioActivo));
+      if (monto > datos.saldo) return alert("Saldo insuficiente");
+      datos.saldo -= monto;
+      datos.movimientos.push(`Retiro: $${monto}`);
+      localStorage.setItem(usuarioActivo, JSON.stringify(datos));
+      verSaldo();
+    }
+
+    function verMovimientos() {
+      const datos = JSON.parse(localStorage.getItem(usuarioActivo));
+      const lista = datos.movimientos.map(m => `<li>${m}</li>`).join('');
+      document.getElementById('resultado').innerHTML = `<h3>Movimientos</h3><ul>${lista}</ul>`;
+    }
+
+    function cerrarSesion() {
+      location.reload();
+    }
+  </script>
+</body>
+</html>
